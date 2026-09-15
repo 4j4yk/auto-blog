@@ -1,0 +1,6 @@
+Write for developers learning practical AI engineering.
+Use plain English, short paragraphs, and descriptive headings.
+Focus on what changed, how it works, why a developer might care, and limitations.
+Do not invent the owner's opinions, credentials, experience, or experiments.
+Do not use generic openings, marketing language, or exaggerated claims.
+Prefer a useful short article over filler. Attribute announcements to their source.

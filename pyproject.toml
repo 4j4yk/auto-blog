@@ -1,0 +1,10 @@
+[project]
+name = "auto-blog"
+version = "0.1.0"
+description = "A small source-backed AI editorial desk and static blog"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "crewai[google-genai]==1.15.20",
+    "markdown-it-py>=4.0,<5",
+    "python-dotenv>=1.2,<2",
+]

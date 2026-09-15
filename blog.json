@@ -1,0 +1,6 @@
+{
+  "feeds": [
+    {"url": "https://huggingface.co/blog/feed.xml", "hosts": ["huggingface.co"]}
+  ],
+  "max_source_age_days": 30
+}
