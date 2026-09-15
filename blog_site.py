@@ -42,7 +42,9 @@ def build_site(posts_dir: Path, output_dir: Path, site_url: str = "") -> None:
     (output_dir / "style.css").write_text(CSS, encoding="utf-8")
     base = _http_url(site_url).rstrip("/")
     posts = []
-    for path in sorted(Path(posts_dir).glob("*.json"), reverse=True):
+    source_paths = sorted(Path(posts_dir).glob("*.json"), reverse=True)
+    expected_pages = {path.stem + ".html" for path in source_paths}
+    for path in source_paths:
         post = json.loads(path.read_text(encoding="utf-8"))
         title, summary = escape(post["title"]), escape(post["summary"])
         date = escape(post["date"])
@@ -59,3 +61,6 @@ def build_site(posts_dir: Path, output_dir: Path, site_url: str = "") -> None:
         posts.append(f'<article class="card"><p class="meta">{date} · AI-assisted</p><h2><a href="{escape(href, quote=True)}">{title}</a></h2><p>{summary}</p></article>')
     content = '<h1>Field Notes</h1><p class="summary">Ideas worth exploring, with sources worth reading.</p>' + ("".join(posts) or "<p>No articles yet. Check back soon.</p>")
     (output_dir / "index.html").write_text(_page("Latest articles", content, "", base + "/" if base else ""), encoding="utf-8")
+    for rendered in (output_dir / "posts").glob("*.html"):
+        if rendered.is_file() and rendered.name not in expected_pages:
+            rendered.unlink()

@@ -35,6 +35,30 @@ class SiteTests(unittest.TestCase):
             build_site(root / 'missing', root / 'site')
             self.assertIn('No articles yet', (root / 'site/index.html').read_text())
 
+    def test_rebuild_removes_deleted_article_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            posts = root / 'posts'
+            posts.mkdir()
+            article = posts / '2026-09-15-example.json'
+            article.write_text(json.dumps({'title': 'Example', 'summary': 'Summary',
+                                          'date': '2026-09-15', 'body': 'Body'}))
+            output = root / 'site'
+            build_site(posts, output)
+            rendered = output / 'posts' / '2026-09-15-example.html'
+            self.assertTrue(rendered.exists())
+            attachment = output / 'posts' / 'notes.txt'
+            attachment.write_text('Keep me')
+            nested = output / 'posts' / 'archive'
+            nested.mkdir()
+            (nested / 'custom.html').write_text('Keep this too')
+            article.unlink()
+            build_site(posts, output)
+            self.assertFalse(rendered.exists())
+            self.assertNotIn('2026-09-15-example.html', (output / 'index.html').read_text())
+            self.assertEqual(attachment.read_text(), 'Keep me')
+            self.assertEqual((nested / 'custom.html').read_text(), 'Keep this too')
+
 
 if __name__ == '__main__':
     unittest.main()
