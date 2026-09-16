@@ -5,6 +5,8 @@ on:
     branches: [main]
   schedule:
     - cron: '17 13 * * *'
+    # Catch up if GitHub drops the first scheduled event. Generation is idempotent.
+    - cron: '47 15,18 * * *'
   workflow_dispatch:
 
 permissions:

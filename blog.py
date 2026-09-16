@@ -17,6 +17,10 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parent
 
 
+class SourceError(RuntimeError):
+    """A safe, actionable retrieval error suitable for workflow logs."""
+
+
 class TextOnly(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -89,26 +93,27 @@ def choose_source(config, posts_dir, today):
             candidates.extend(feed_items(fetch(feed['url'], feed['hosts']), feed['hosts'], today,
                                          config.get('max_source_age_days', 30)))
         except Exception as exc:
-            errors.append(type(exc).__name__)
+            errors.append(f'{type(exc).__name__}: {exc}' if isinstance(exc, ValueError) else f'{type(exc).__name__}' + (f' HTTP {exc.code}' if hasattr(exc, 'code') else ''))
     if not candidates and errors:
-        raise RuntimeError('Could not retrieve usable sources: ' + ', '.join(errors))
+        raise SourceError('Could not retrieve usable sources: ' + ', '.join(errors))
     for source in [c for c in sorted(candidates, key=lambda x: x['published'], reverse=True) if c['url'] not in used][:5]:
         if source['url'] in used:
             continue
         hosts = next(f['hosts'] for f in config['feeds'] if urlparse(source['url']).hostname in f['hosts'])
         try:
             html = fetch(source['url'], hosts)
-            match = re.search(r'<article\b[^>]*>(.*?)</article>', html, re.S | re.I)
+            # Embedded model cards also use <article>; read the page's main content first.
+            match = re.search(r'<main\b[^>]*>(.*?)</main>', html, re.S | re.I)
             if not match:
-                match = re.search(r'<main\b[^>]*>(.*?)</main>', html, re.S | re.I)
+                match = re.search(r'<article\b[^>]*>(.*?)</article>', html, re.S | re.I)
             source['text'] = plain_text(match.group(1) if match else html)[:24000]
             if len(source['text'].split()) < 150:
                 raise ValueError('Not enough source text')
             return source
         except Exception as exc:
-            errors.append(type(exc).__name__)
+            errors.append(f'{type(exc).__name__}: {exc}' if isinstance(exc, ValueError) else f'{type(exc).__name__}' + (f' HTTP {exc.code}' if hasattr(exc, 'code') else ''))
     if errors:
-        raise RuntimeError('Could not read a new source article: ' + ', '.join(errors))
+        raise SourceError('Could not read a new source article: ' + ', '.join(errors))
     return None
 
 
@@ -234,7 +239,7 @@ if __name__ == '__main__':
         main()
     except Exception as exc:
         # Provider exceptions can include request details. Never echo credentials or raw payloads.
-        if isinstance(exc, (ValueError, json.JSONDecodeError)):
+        if isinstance(exc, (ValueError, SourceError)):
             print(f'Blog stopped: {exc}', file=sys.stderr)
         else:
             print(f'Blog stopped ({type(exc).__name__}). Check source access, model availability, and API quota. No post was published.', file=sys.stderr)

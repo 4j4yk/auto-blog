@@ -24,7 +24,7 @@ Open http://localhost:8000. Generation and publishing are separate commands: ins
 3. Set **Settings → Pages → Source** to **GitHub Actions**.
 4. Under **Actions → Publish blog**, select **Run workflow**.
 
-The workflow runs at **13:17 UTC daily** (9:17 a.m. Detroit during daylight saving, 8:17 a.m. in winter). A push rebuilds existing posts without calling AI. A scheduled or manual run generates at most one new article per UTC date, commits it, then deploys Pages explicitly in the same run. GitHub schedules may be delayed; inactive public repositories can have schedules disabled after 60 days.
+The workflow runs at **13:17 UTC daily** (9:17 a.m. Detroit during daylight saving, 8:17 a.m. in winter). Backup attempts at **15:47 and 18:47 UTC** catch up if the first trigger is missed. Once today's article exists, these attempts skip AI generation. A push rebuilds existing posts without calling AI. A scheduled or manual run generates at most one new article per UTC date, commits it, then deploys Pages explicitly in the same run. GitHub schedules may be delayed; inactive public repositories can have schedules disabled after 60 days.
 
 `BLOG_MODEL` is an optional Actions variable. Locally, `BLOG_MODEL` overrides `MODEL` in `.env`. The default is `gemini/gemini-3.5-flash-lite`. Confirm your selected model is available within your account's free quota. There is no automatic paid-model fallback. Provider quotas can interrupt generation; a failed run does not publish a new article. A free-tier architecture does not establish that an existing API account has billing disabled.
 

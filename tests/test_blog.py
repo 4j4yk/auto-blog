@@ -47,6 +47,14 @@ class BlogTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 blog.choose_source({'feeds':[{'url': SOURCE['url'], 'hosts':['huggingface.co']}]}, Path(temp), date(2026,9,15))
 
+    def test_embedded_article_card_does_not_hide_main_content(self):
+        xml = '<rss><channel><item><title>Story</title><link>' + SOURCE['url'] + '</link><pubDate>Wed, 16 Sep 2026 10:00:00 GMT</pubDate></item></channel></rss>'
+        html = '<main><article>Small model card</article><h1>Real article</h1><p>' + 'Useful evidence. ' * 180 + '</p></main>'
+        with tempfile.TemporaryDirectory() as temp, patch('blog.fetch', side_effect=[xml, html]):
+            source = blog.choose_source({'feeds':[{'url': SOURCE['url'], 'hosts':['huggingface.co']}]}, Path(temp), date(2026,9,16))
+            self.assertIn('Real article', source['text'])
+            self.assertGreater(len(source['text'].split()), 150)
+
     def test_reject_unapproved_source_before_network(self):
         with self.assertRaises(ValueError):
             blog.fetch('http://localhost/private', ['huggingface.co'])
