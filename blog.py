@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 import json
@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 import sys
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent
@@ -84,8 +84,16 @@ def feed_items(xml, allowed_hosts, today, max_age_days=30):
     return sorted(items, key=lambda item: item['published'], reverse=True)
 
 
+def _used_source_urls(posts_dir):
+    return {
+        source_url
+        for path in posts_dir.glob('*.json')
+        if isinstance((source_url := json.loads(path.read_text()).get('source_url')), str)
+    }
+
+
 def choose_source(config, posts_dir, today):
-    used = {json.loads(p.read_text())['source_url'] for p in posts_dir.glob('*.json')}
+    used = _used_source_urls(posts_dir)
     candidates = []
     errors = []
     for feed in config['feeds']:
@@ -97,8 +105,6 @@ def choose_source(config, posts_dir, today):
     if not candidates and errors:
         raise SourceError('Could not retrieve usable sources: ' + ', '.join(errors))
     for source in [c for c in sorted(candidates, key=lambda x: x['published'], reverse=True) if c['url'] not in used][:5]:
-        if source['url'] in used:
-            continue
         hosts = next(f['hosts'] for f in config['feeds'] if urlparse(source['url']).hostname in f['hosts'])
         try:
             html = fetch(source['url'], hosts)
@@ -182,7 +188,7 @@ def save_post(article, source, posts_dir, today):
     posts_dir.mkdir(parents=True, exist_ok=True)
     if list(posts_dir.glob(f'{today.isoformat()}-*.json')):
         return None
-    used = {json.loads(p.read_text())['source_url'] for p in posts_dir.glob('*.json')}
+    used = _used_source_urls(posts_dir)
     if source['url'] in used:
         return None
     slug = re.sub(r'[^a-z0-9]+', '-', article['title'].lower()).strip('-')[:70] or 'article'

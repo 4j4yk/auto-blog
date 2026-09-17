@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from html import escape
 from pathlib import Path
 from urllib.parse import quote, urlparse
@@ -26,6 +27,30 @@ def _markdown(body: str) -> str:
     return parser.render(body)
 
 
+def _validate_post(post: object, path: Path) -> dict:
+    """Validate committed content before it reaches the site renderer."""
+    if not isinstance(post, dict):
+        raise ValueError(f"Invalid post {path.name}: expected a JSON object")
+    for field, limit in (("title", 140), ("summary", 350), ("date", 10), ("body", 14_000)):
+        value = post.get(field)
+        if not isinstance(value, str) or not value.strip() or len(value) > limit:
+            raise ValueError(f"Invalid post {path.name}: bad {field}")
+    try:
+        date.fromisoformat(post["date"])
+    except ValueError as exc:
+        raise ValueError(f"Invalid post {path.name}: date must use YYYY-MM-DD") from exc
+    sources = post.get("sources", [])
+    if not isinstance(sources, list):
+        raise ValueError(f"Invalid post {path.name}: sources must be a list")
+    for source in sources:
+        if not isinstance(source, dict) or not isinstance(source.get("title"), str) or not source["title"].strip() or not _http_url(source.get("url")):
+            raise ValueError(f"Invalid post {path.name}: bad source")
+    source_url = post.get("source_url")
+    if source_url is not None and not _http_url(source_url):
+        raise ValueError(f"Invalid post {path.name}: bad source_url")
+    return post
+
+
 def _page(title: str, content: str, prefix: str, canonical: str = "") -> str:
     canonical_tag = f'<link rel="canonical" href="{escape(canonical, quote=True)}">' if canonical else ""
     return f'''<!doctype html>
@@ -45,7 +70,7 @@ def build_site(posts_dir: Path, output_dir: Path, site_url: str = "") -> None:
     source_paths = sorted(Path(posts_dir).glob("*.json"), reverse=True)
     expected_pages = {path.stem + ".html" for path in source_paths}
     for path in source_paths:
-        post = json.loads(path.read_text(encoding="utf-8"))
+        post = _validate_post(json.loads(path.read_text(encoding="utf-8")), path)
         title, summary = escape(post["title"]), escape(post["summary"])
         date = escape(post["date"])
         filename = path.stem + ".html"

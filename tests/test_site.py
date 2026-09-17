@@ -12,7 +12,7 @@ class SiteTests(unittest.TestCase):
             root = Path(directory)
             posts = root / 'posts'
             posts.mkdir()
-            post = {'title': '<script>title</script>', 'summary': '<img src=x onerror=alert(1)>', 'date': '2026-09-15', 'body': '<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n[good](https://example.org/read)', 'sources': [{'title': '<b>Source</b>', 'url': 'https://example.org/?a=1&b=2'}, {'title': 'Unsafe', 'url': 'javascript:alert(1)'}]}
+            post = {'title': '<script>title</script>', 'summary': '<img src=x onerror=alert(1)>', 'date': '2026-09-15', 'body': '<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n[good](https://example.org/read)', 'sources': [{'title': '<b>Source</b>', 'url': 'https://example.org/?a=1&b=2'}]}
             (posts / '2026-09-15-example.json').write_text(json.dumps(post))
             output = root / 'site'
             build_site(posts, output, 'https://example.github.io/my-blog')
@@ -28,6 +28,23 @@ class SiteTests(unittest.TestCase):
             self.assertIn('href="https://example.org/read"', article)
             self.assertIn('&lt;b&gt;Source&lt;/b&gt;', article)
             self.assertIn('AI-assisted', article)
+
+    def test_invalid_committed_post_stops_the_build(self):
+        cases = [
+            [],
+            {'title': '', 'summary': 'Summary', 'date': '2026-09-15', 'body': 'Body'},
+            {'title': 'Title', 'summary': 'Summary', 'date': 'not-a-date', 'body': 'Body'},
+            {'title': 'Title', 'summary': 'Summary', 'date': '2026-09-15', 'body': 'Body',
+             'sources': [{'title': 'Unsafe', 'url': 'javascript:alert(1)'}]},
+        ]
+        for post in cases:
+            with self.subTest(post=post), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                posts = root / 'posts'
+                posts.mkdir()
+                (posts / 'bad.json').write_text(json.dumps(post))
+                with self.assertRaisesRegex(ValueError, 'Invalid post bad.json'):
+                    build_site(posts, root / 'site')
 
     def test_empty_blog_builds(self):
         with tempfile.TemporaryDirectory() as directory:

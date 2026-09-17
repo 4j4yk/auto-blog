@@ -42,6 +42,16 @@ class BlogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp, patch('blog.fetch', return_value='<rss><channel/></rss>'):
             self.assertIsNone(blog.choose_source({'feeds':[{'url': SOURCE['url'], 'hosts':['huggingface.co']}]}, Path(temp), date(2026,9,15)))
 
+    def test_manual_post_without_source_url_does_not_break_generation(self):
+        with tempfile.TemporaryDirectory() as temp, patch('blog.fetch', return_value='<rss><channel/></rss>'):
+            posts = Path(temp)
+            (posts / 'manual.json').write_text(json.dumps({
+                'title': 'Manual', 'summary': 'Summary', 'date': '2026-09-14', 'body': 'Body'
+            }))
+            self.assertIsNone(blog.choose_source(
+                {'feeds':[{'url': SOURCE['url'], 'hosts':['huggingface.co']}]}, posts, date(2026,9,15)
+            ))
+
     def test_source_fetch_failure_is_not_empty_success(self):
         with tempfile.TemporaryDirectory() as temp, patch('blog.fetch', side_effect=OSError('offline')):
             with self.assertRaises(RuntimeError):
