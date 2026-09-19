@@ -1,6 +1,6 @@
 # Auto Blog
 
-A small AI engineering blog. Three CrewAI roles work in sequence: **researcher → writer → editor**. A daily GitHub workflow saves an approved article and publishes a static website.
+A small AI and security engineering blog. Three CrewAI roles work in sequence: **researcher → writer → editor**. A GitHub workflow publishes up to three approved articles each day.
 
 ## Run locally
 
@@ -24,7 +24,7 @@ Open http://localhost:8000. Generation and publishing are separate commands: ins
 3. Set **Settings → Pages → Source** to **GitHub Actions**.
 4. Under **Actions → Publish blog**, select **Run workflow**.
 
-The workflow runs at **13:17 UTC daily** (9:17 a.m. Detroit during daylight saving, 8:17 a.m. in winter). Backup attempts at **15:47 and 18:47 UTC** catch up if the first trigger is missed. Once today's article exists, these attempts skip AI generation. A push rebuilds existing posts without calling AI. A scheduled or manual run generates at most one new article per UTC date, commits it, then deploys Pages explicitly in the same run. GitHub schedules may be delayed; inactive public repositories can have schedules disabled after 60 days.
+The workflow runs every day at **7:00 a.m., 12:00 p.m., and 4:00 p.m. Eastern Time** using GitHub's `America/New_York` timezone support, so daylight saving changes are automatic. Each named slot publishes at most one article. A push rebuilds existing posts without calling AI. A scheduled or manual run commits a new article when its slot is empty, then deploys Pages explicitly in the same run. GitHub schedules may be delayed; inactive public repositories can have schedules disabled after 60 days.
 
 `BLOG_MODEL` is an optional Actions variable. Locally, `BLOG_MODEL` overrides `MODEL` in `.env`. The default is `gemini/gemini-3.5-flash-lite`. Confirm your selected model is available within your account's free quota. There is no automatic paid-model fallback. Provider quotas can interrupt generation; a failed run does not publish a new article. A free-tier architecture does not establish that an existing API account has billing disabled.
 
@@ -32,7 +32,7 @@ The workflow runs at **13:17 UTC daily** (9:17 a.m. Detroit during daylight savi
 
 - `knowledge/user_preference.txt`: audience and writing preferences. Add your own notes; do not ask the model to invent experiences.
 - `desk.json`: the three roles and their editorial responsibilities.
-- `blog.json`: RSS feeds, allowed source hosts, and the freshness window. Starts with Hugging Face's blog feed; this is a source-linked digest, not a comprehensive news service.
+- `blog.json`: RSS and Atom feeds, allowed source hosts, and the freshness window. Sources cover practical AI, research, developer platforms, security research, and a restricted Hacker News discovery feed.
 - `posts/`: editable articles and their source URLs. The history is also the duplicate tracker.
 - `blog.py`: source fetching, CrewAI handoffs, validation, and saving.
 - `blog_site.py`: static HTML rendering. No database, frontend framework, or always-on server.

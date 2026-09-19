@@ -13,6 +13,7 @@ import sys
 from urllib.parse import urlparse
 from urllib.request import Request
 import xml.etree.ElementTree as ET
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
 
@@ -65,22 +66,51 @@ def fetch(url, allowed_hosts):
         return data.decode('utf-8', errors='replace')
 
 
-def feed_items(xml, allowed_hosts, today, max_age_days=30):
-    items = []
-    for item in ET.fromstring(xml).findall('.//item'):
-        url = (item.findtext('link') or '').strip()
-        published = item.findtext('pubDate')
-        if not published or urlparse(url).hostname not in allowed_hosts:
-            continue
+def _feed_date(value):
+    try:
+        return parsedate_to_datetime(value).date()
+    except (ValueError, TypeError):
         try:
-            published_date = parsedate_to_datetime(published).date()
-        except (ValueError, TypeError):
+            return datetime.fromisoformat(value.replace('Z', '+00:00')).date()
+        except (ValueError, AttributeError):
+            return None
+
+
+def feed_items(xml, allowed_hosts, today, max_age_days=30, source_name='', keywords=None):
+    items = []
+    root = ET.fromstring(xml)
+    atom = root.tag.endswith('feed')
+    entries = root.findall('{http://www.w3.org/2005/Atom}entry') if atom else root.findall('.//item')
+    for item in entries:
+        if atom:
+            link = next((link for link in item.findall('{http://www.w3.org/2005/Atom}link')
+                         if link.get('rel', 'alternate') == 'alternate'), None)
+            url = (link.get('href') if link is not None else '').strip()
+            title = item.findtext('{http://www.w3.org/2005/Atom}title') or ''
+            published = (item.findtext('{http://www.w3.org/2005/Atom}published') or
+                         item.findtext('{http://www.w3.org/2005/Atom}updated'))
+            description = (item.findtext('{http://www.w3.org/2005/Atom}summary') or
+                           item.findtext('{http://www.w3.org/2005/Atom}content') or '')
+        else:
+            url = (item.findtext('link') or '').strip()
+            title = item.findtext('title') or ''
+            published = item.findtext('pubDate')
+            description = item.findtext('description') or ''
+        if urlparse(url).hostname not in allowed_hosts:
+            continue
+        if keywords and not any(keyword.lower() in f'{title} {plain_text(description)}'.lower()
+                                for keyword in keywords):
+            continue
+        published_date = _feed_date(published)
+        if published_date is None:
             continue
         if not 0 <= (today - published_date).days <= max_age_days:
             continue
-        items.append({'title': plain_text(item.findtext('title') or ''), 'url': url,
+        items.append({'title': plain_text(title), 'url': url,
                       'published': published_date.isoformat(),
-                      'excerpt': plain_text(item.findtext('description') or '')[:8000]})
+                      'excerpt': plain_text(description)[:8000],
+                      'source_name': source_name,
+                      '_allowed_hosts': allowed_hosts})
     return sorted(items, key=lambda item: item['published'], reverse=True)
 
 
@@ -98,16 +128,17 @@ def choose_source(config, posts_dir, today):
     errors = []
     for feed in config['feeds']:
         try:
-            candidates.extend(feed_items(fetch(feed['url'], feed['hosts']), feed['hosts'], today,
-                                         config.get('max_source_age_days', 30)))
+            candidates.extend(feed_items(fetch(feed['url'], feed['hosts']),
+                                         feed.get('article_hosts', feed['hosts']), today,
+                                         config.get('max_source_age_days', 30), feed.get('name', ''),
+                                         feed.get('keywords')))
         except Exception as exc:
             errors.append(f'{type(exc).__name__}: {exc}' if isinstance(exc, ValueError) else f'{type(exc).__name__}' + (f' HTTP {exc.code}' if hasattr(exc, 'code') else ''))
     if not candidates and errors:
         raise SourceError('Could not retrieve usable sources: ' + ', '.join(errors))
     for source in [c for c in sorted(candidates, key=lambda x: x['published'], reverse=True) if c['url'] not in used][:5]:
-        hosts = next(f['hosts'] for f in config['feeds'] if urlparse(source['url']).hostname in f['hosts'])
         try:
-            html = fetch(source['url'], hosts)
+            html = fetch(source['url'], source.pop('_allowed_hosts'))
             # Embedded model cards also use <article>; read the page's main content first.
             match = re.search(r'<main\b[^>]*>(.*?)</main>', html, re.S | re.I)
             if not match:
@@ -184,16 +215,17 @@ def validate_article(raw, source):
     return {key: article[key].strip() for key in ('title', 'summary', 'body')}
 
 
-def save_post(article, source, posts_dir, today):
+def save_post(article, source, posts_dir, today, slot='manual'):
     posts_dir.mkdir(parents=True, exist_ok=True)
-    if list(posts_dir.glob(f'{today.isoformat()}-*.json')):
+    if list(posts_dir.glob(f'{today.isoformat()}-{slot}-*.json')):
         return None
     used = _used_source_urls(posts_dir)
     if source['url'] in used:
         return None
     slug = re.sub(r'[^a-z0-9]+', '-', article['title'].lower()).strip('-')[:70] or 'article'
-    path = posts_dir / f'{today.isoformat()}-{slug}.json'
+    path = posts_dir / f'{today.isoformat()}-{slot}-{slug}.json'
     post = dict(article, date=today.isoformat(), source_url=source['url'],
+                slot=slot, source_name=source.get('source_name', ''),
                 sources=[{'title': source['title'], 'url': source['url']}])
     temp = path.with_suffix('.tmp')
     temp.write_text(json.dumps(post, ensure_ascii=False, indent=2) + '\n')
@@ -207,6 +239,7 @@ def main():
     parser.add_argument('--env-file', type=Path, default=ROOT / '.env')
     parser.add_argument('--posts', type=Path, default=ROOT / 'posts')
     parser.add_argument('--output', type=Path, default=ROOT / '_site')
+    parser.add_argument('--slot', choices=['morning', 'midday', 'afternoon'])
     args = parser.parse_args()
     from dotenv import load_dotenv
     load_dotenv(args.env_file)
@@ -215,9 +248,11 @@ def main():
         build_site(args.posts, args.output, os.getenv('SITE_URL', ''))
         print(f'Website built: {args.output}')
         return
-    today = datetime.now(timezone.utc).date()
-    if list(args.posts.glob(f'{today.isoformat()}-*.json')):
-        print('Already published today; nothing to do.')
+    eastern_now = datetime.now(ZoneInfo('America/New_York'))
+    today = eastern_now.date()
+    slot = args.slot or os.getenv('BLOG_SLOT') or ('morning' if eastern_now.hour < 12 else 'midday' if eastern_now.hour < 16 else 'afternoon')
+    if list(args.posts.glob(f'{today.isoformat()}-{slot}-*.json')):
+        print(f'Already published the {slot} article; nothing to do.')
         return
     if not os.getenv('GEMINI_API_KEY'):
         raise ValueError('Set GEMINI_API_KEY in .env or GitHub Actions secrets')
@@ -236,7 +271,7 @@ def main():
         rejected.parent.mkdir(parents=True, exist_ok=True)
         rejected.write_text(raw)
         raise
-    saved = save_post(article, source, args.posts, today)
+    saved = save_post(article, source, args.posts, today, slot)
     print(f'Saved: {saved}' if saved else 'Article already exists; nothing changed.')
 
 

@@ -1,6 +1,23 @@
 {
   "feeds": [
-    {"url": "https://huggingface.co/blog/feed.xml", "hosts": ["huggingface.co"]}
+    {"name": "Hugging Face", "url": "https://huggingface.co/blog/feed.xml", "hosts": ["huggingface.co"]},
+    {"name": "Simon Willison", "url": "https://simonwillison.net/atom/entries/", "hosts": ["simonwillison.net"]},
+    {"name": "Google Research", "url": "https://research.google/blog/rss/", "hosts": ["research.google"], "keywords": ["AI", "artificial intelligence", "machine learning", "language model", "foundation model", "LLM", "agent", "security"]},
+    {"name": "GitHub Blog", "url": "https://github.blog/feed/", "hosts": ["github.blog"], "keywords": ["AI", "Copilot", "security", "CodeQL", "Actions", "developer", "open source", "supply chain"]},
+    {"name": "PortSwigger Research", "url": "https://portswigger.net/research/rss", "hosts": ["portswigger.net"]},
+    {"name": "Trail of Bits", "url": "https://blog.trailofbits.com/feed/", "hosts": ["blog.trailofbits.com"]},
+    {
+      "name": "Hacker News 100+",
+      "url": "https://hnrss.org/frontpage?points=100",
+      "hosts": ["hnrss.org"],
+      "keywords": ["AI", "LLM", "language model", "agent", "security", "vulnerability", "exploit", "software", "developer", "programming", "database", "infrastructure", "cloud"],
+      "article_hosts": [
+        "anthropic.com", "blog.cloudflare.com", "blog.trailofbits.com",
+        "deepmind.google", "github.blog", "huggingface.co", "openai.com",
+        "portswigger.net", "projectzero.google", "research.google",
+        "security.googleblog.com", "simonwillison.net", "spectrum.ieee.org"
+      ]
+    }
   ],
-  "max_source_age_days": 30
+  "max_source_age_days": 14
 }

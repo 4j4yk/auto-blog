@@ -26,11 +26,27 @@ class BlogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             posts = Path(temp)
             data = blog.validate_article(article(), SOURCE)
-            saved = blog.save_post(data, SOURCE, posts, date(2026, 9, 15))
+            saved = blog.save_post(data, SOURCE, posts, date(2026, 9, 15), 'morning')
             self.assertEqual(json.loads(saved.read_text())['source_url'], SOURCE['url'])
-            self.assertIsNone(blog.save_post(data, dict(SOURCE, url='https://huggingface.co/blog/another'), posts, date(2026, 9, 15)))
-            self.assertIsNone(blog.save_post(data, SOURCE, posts, date(2026, 9, 16)))
-            self.assertEqual(len(list(posts.glob('*.json'))), 1)
+            midday = blog.save_post(data, dict(SOURCE, url='https://huggingface.co/blog/another'), posts,
+                                    date(2026, 9, 15), 'midday')
+            self.assertIsNotNone(midday)
+            self.assertIsNone(blog.save_post(data, dict(SOURCE, url='https://huggingface.co/blog/third'), posts,
+                                             date(2026, 9, 15), 'midday'))
+            self.assertIsNone(blog.save_post(data, SOURCE, posts, date(2026, 9, 16), 'morning'))
+            self.assertEqual(len(list(posts.glob('*.json'))), 2)
+
+    def test_atom_feed_is_supported(self):
+        xml = '''<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Practical AI</title>
+        <link rel="alternate" href="https://simonwillison.net/2026/example/"/>
+        <updated>2026-09-15T10:00:00Z</updated><summary>Useful details</summary></entry></feed>'''
+        items = blog.feed_items(xml, ['simonwillison.net'], date(2026, 9, 15), source_name='Simon Willison')
+        self.assertEqual(items[0]['url'], 'https://simonwillison.net/2026/example/')
+        self.assertEqual(items[0]['source_name'], 'Simon Willison')
+
+    def test_feed_keywords_remove_unrelated_items(self):
+        xml = '<rss><channel><item><title>Gardening</title><link>' + SOURCE['url'] + '</link><pubDate>Tue, 15 Sep 2026 10:00:00 GMT</pubDate><description>Tomatoes</description></item></channel></rss>'
+        self.assertEqual(blog.feed_items(xml, ['huggingface.co'], date(2026, 9, 15), keywords=['security']), [])
 
     def test_fresh_sources_only_and_host_filter(self):
         def item(url, day):
