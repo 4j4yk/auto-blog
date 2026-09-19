@@ -1,0 +1,15 @@
+{
+  "title": "Navigating AI Workflows: Code Review, RAG, and Agent Tools",
+  "summary": "An overview of current AI engineering practices based on a GitHub Blog post, detailing how developers manage agent-generated code, leverage RAG for context, and structure tool integration.",
+  "body": "## Managing AI-Generated Code Review\n\nAccording to the [GitHub Blog](https://github.blog/ai-and-ml/should-you-read-the-code-is-rag-dead-and-did-skills-kill-mcp/), developers remain responsible for agent-generated code. However, the source states that the depth of human review should match the specific risk level of the change.\n\nA production authentication refactor requires rigorous scrutiny of security, error handling, and permissions. Conversely, a low-risk CSS experiment does not demand the same level of intensive review. Tailoring review depth to risk helps reserve exhaustive manual auditing for high-stakes modifications.\n\n## Separating MCP and Skills\n\nThe source reports that the Model Context Protocol (MCP) and skills serve distinct functions in an AI workflow:\n\n* **MCP:** Provides a standard interface for agents to reliably connect to tools and data.\n* **Skills:** Act as packaged expertise—frequently written in Markdown—that outline team processes, project conventions, and instructions on how to use specific tools.\n\nDevelopers can use MCP to establish standardized tool connectivity while utilizing skills to supply procedural context for specific projects.\n\n## The Ongoing Role of RAG\n\nThe source notes that Retrieval-Augmented Generation (RAG) remains necessary for external context. RAG grounds AI responses in information outside the model's training data, such as support history, documentation, or internal codebases. Without it, models rely solely on their existing training, which can lead to incomplete answers and wasted tokens.\n\n## Maintaining Codebases for Humans and AI\n\nThe source suggests that if an AI model struggles to understand a codebase, human teammates likely struggle as well. Clear structures, consistent naming conventions, and current documentation improve maintainability for both human developers and autonomous agents. Investing in clean repository design benefits team onboarding alongside agent reliability.\n\n## Limitations\n\nThe source presents qualitative opinions and perspectives from a podcast discussion rather than empirical benchmarks or quantitative testing data. Additionally, the text omits specific architectural guidelines or code examples for implementing skills, MCP, and RAG together in production environments.",
+  "date": "2026-09-19",
+  "source_url": "https://github.blog/ai-and-ml/should-you-read-the-code-is-rag-dead-and-did-skills-kill-mcp/",
+  "slot": "morning",
+  "source_name": "GitHub Blog",
+  "sources": [
+    {
+      "title": "Should you read the code, is RAG dead, and did Skills kill MCP?",
+      "url": "https://github.blog/ai-and-ml/should-you-read-the-code-is-rag-dead-and-did-skills-kill-mcp/"
+    }
+  ]
+}
